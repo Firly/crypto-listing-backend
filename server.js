@@ -52,7 +52,7 @@ Time: ${newListing.time}`);
 };
 
 // Simulate data update every 2 hours
-setInterval(simulateListingData, 2 * 60 * 60 * 1000);
+setInterval(simulateListingData, 2 * 60 * 1000);
 simulateListingData();
 
 app.get('/api/listings', (req, res) => {
