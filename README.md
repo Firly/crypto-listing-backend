@@ -37,3 +37,12 @@ git clone https://github.com/yourusername/crypto-listing-notifier.git
 cd crypto-listing-notifier
 npm install
 node server.js
+
+## 🤖 Pengembangan Selanjutnya
+Integrasi ke WhatsApp via Twilio API
+
+Penjadwalan dinamis via CronJob
+
+Web frontend dengan React/Vue
+
+Fitur filter coin/exchange
