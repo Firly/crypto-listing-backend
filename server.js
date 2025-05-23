@@ -11,7 +11,7 @@ app.use(cors());
 let listings = [];
 let lastNotified = new Set();
 
-const TELEGRAM_TOKEN = '7658060604:AAFqy7wQHXHjH2dNDGSN3HgCTNt2tve1T8I';
+const TELEGRAM_TOKEN = '7658060064:AAFqy7wQHXHjH2dNDGSN3HgCTNt2tve1T8I';
 const CHAT_ID = '7259098951';
 
 const sendTelegramMessage = async (message) => {
