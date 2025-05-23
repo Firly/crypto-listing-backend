@@ -38,6 +38,8 @@ cd crypto-listing-notifier
 npm install
 node server.js
 
+---
+
 ## 🤖 Pengembangan Selanjutnya
 Integrasi ke WhatsApp via Twilio API
 
