@@ -37,8 +37,6 @@ const checkIndodax = async (symbol) => {
   }
 };
 
-const fetchListingData = async () => {
-  try {
     const res = await axios.get('https://developers.coinmarketcal.com/v1/events', {
       headers: {
         'x-api-key': COINMARKETCAL_API_KEY,
@@ -46,7 +44,7 @@ const fetchListingData = async () => {
       params: {
         page: 1,
         max: 10,
-        categories: 'listing',
+        categories: '1', // gunakan ID kategori: 1 = listing
       },
     });
 
