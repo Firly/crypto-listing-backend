@@ -1,10 +1,10 @@
-// File: server.js
+// server.js
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 
@@ -27,73 +27,68 @@ const sendTelegramMessage = async (message) => {
   }
 };
 
-const checkIndodax = async (symbol) => {
+const fetchCoinMarketCalListings = async () => {
   try {
-    const res = await axios.get('https://indodax.com/api/pairs');
-    return res.data.includes(symbol.toLowerCase());
-  } catch (err) {
-    console.error('❌ Gagal cek di Indodax:', err.message);
-    return false;
-  }
-};
-
-const fetchListingsFromCMC = async () => {
-  try {
-    const response = await axios.get('https://developers.coinmarketcal.com/v1/events', {
+    const res = await axios.get('https://developers.coinmarketcal.com/v1/events', {
       headers: {
         'x-api-key': COINMARKETCAL_API_KEY,
-        Accept: 'application/json',
-        'Accept-Encoding': 'deflate, gzip',
       },
       params: {
+        page: 1,
         max: 10,
-        sortBy: 'created_desc',
-        showOnly: 'firmed_date',
-        translations: 'en',
+        categories: 'listing', // Menggunakan string 'listing' yang benar
+        sortBy: 'date_added',
+        coins: '',
       },
     });
 
-    const events = res.data.body || [];
-
-    for (const event of events) {
-      const coin = event.coins[0];
-      if (!coin) continue;
-
-      const token = coin.symbol;
-      const name = coin.name;
-      const exchange = event.proof || 'Unknown Exchange';
-      const status = event.categories[0]?.name || 'Upcoming';
-      const time = event.date_event;
-
-      if (!lastNotified.has(event.id)) {
-        const isInIndodax = await checkIndodax(tokenSymbol);
-        const msg = `🚀 *Token Listing Baru!*\n\n` +
-          `Token: ${tokenSymbol}\n` +
-          `Name: ${tokenName}\n` +
-          `Exchange: ${exchange}\n` +
-          `Time: ${time}\n` +
-          `${isInIndodax ? '✅ Tersedia di Indodax' : '❌ Tidak tersedia di Indodax'}`;
-
-        await sendTelegramMessage(msg);
-        lastNotified.add(event.id);
-
-        listings.push({
-          token: tokenSymbol,
-          name: tokenName,
-          exchange,
-          time,
-          indodax: isInIndodax,
-        });
-      }
-    }
+    const events = res.data.body;
+    console.log('✅ Jumlah event listing:', events.length);
+    return events;
   } catch (err) {
     console.error('❌ Gagal fetch dari CoinMarketCal:', err.response?.data || err.message);
+    return [];
   }
 };
 
-// Jalankan setiap 2 jam
-setInterval(fetchListingsFromCMC, 2 * 60 * 60 * 1000);
-fetchListingsFromCMC();
+const fetchIndodaxCoins = async () => {
+  try {
+    const res = await axios.get('https://indodax.com/api/pairs');
+    return res.data.map((pair) => pair.base_id.toUpperCase());
+  } catch (err) {
+    console.error('❌ Gagal fetch data dari Indodax:', err.message);
+    return [];
+  }
+};
+
+const checkAndNotifyListings = async () => {
+  const listingsFromCMC = await fetchCoinMarketCalListings();
+  const indodaxCoins = await fetchIndodaxCoins();
+
+  for (const listing of listingsFromCMC) {
+    const token = listing.coins[0]?.symbol;
+    if (!token || lastNotified.has(token)) continue;
+
+    const alreadyOnIndodax = indodaxCoins.includes(token.toUpperCase());
+
+    const message = `🚀 *Token Listing Baru!*\n\nToken: ${token}\nNama: ${listing.coins[0]?.name}\nExchange: ${listing.exchange}\nTanggal: ${listing.date_event}\n${alreadyOnIndodax ? '✅ Sudah listing di Indodax' : '❌ Belum ada di Indodax'}`;
+
+    await sendTelegramMessage(message);
+    lastNotified.add(token);
+
+    listings.push({
+      token,
+      name: listing.coins[0]?.name,
+      exchange: listing.exchange,
+      date: listing.date_event,
+      indodax: alreadyOnIndodax,
+    });
+  }
+};
+
+// Simulasi pengecekan setiap 2 jam
+setInterval(checkAndNotifyListings, 2 * 60 * 60 * 1000);
+checkAndNotifyListings();
 
 app.get('/api/listings', (req, res) => {
   res.json(listings);
