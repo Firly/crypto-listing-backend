@@ -93,7 +93,7 @@ const fetchListingsFromCMC = async () => {
 
 // Jalankan setiap 2 jam
 setInterval(fetchListingsFromCMC, 2 * 60 * 60 * 1000);
-fetchListingData();
+fetchListingsFromCMC();
 
 app.get('/api/listings', (req, res) => {
   res.json(listings);
