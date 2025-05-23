@@ -37,24 +37,32 @@ const checkIndodax = async (symbol) => {
   }
 };
 
-    const res = await axios.get('https://developers.coinmarketcal.com/v1/events', {
+const fetchListingsFromCMC = async () => {
+  try {
+    const response = await axios.get('https://developers.coinmarketcal.com/v1/events', {
       headers: {
         'x-api-key': COINMARKETCAL_API_KEY,
+        Accept: 'application/json',
+        'Accept-Encoding': 'deflate, gzip',
       },
       params: {
-        page: 1,
         max: 10,
-        categories: '1', // gunakan ID kategori: 1 = listing
+        sortBy: 'created_desc',
+        showOnly: 'firmed_date',
+        translations: 'en',
       },
     });
 
     const events = res.data.body || [];
 
     for (const event of events) {
-      const tokenName = event.coins?.[0]?.name || 'Unknown';
-      const tokenSymbol = event.coins?.[0]?.symbol || '';
-      const tokenSlug = event.coins?.[0]?.slug || '';
-      const exchange = event.exchange || 'Unknown';
+      const coin = event.coins[0];
+      if (!coin) continue;
+
+      const token = coin.symbol;
+      const name = coin.name;
+      const exchange = event.proof || 'Unknown Exchange';
+      const status = event.categories[0]?.name || 'Upcoming';
       const time = event.date_event;
 
       if (!lastNotified.has(event.id)) {
