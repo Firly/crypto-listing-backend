@@ -1,21 +1,22 @@
-// File: server.js
+// server.js
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 
 app.use(cors());
 
 let listings = [];
 let lastNotified = new Set();
+let indodaxSymbols = new Set(); // Token-token dari Indodax
 
-// Ganti dengan bot Telegram milikmu
-const TELEGRAM_TOKEN = '7658060064:AAFqy7wQHXHjH2dNDGSN3HgCTNt2tve1T8I';
-const CHAT_ID = '7259098951';
-const COINMARKETCAL_API_KEY = 'vHY89IrinPaYLTk7TfYuq6cdrv7XEYPTaIKFmiyb';
+const TELEGRAM_TOKEN = 'TOKEN_BOT_KAMU';
+const CHAT_ID = 'CHAT_ID_KAMU';
+const COINMARKETCAL_API_KEY = 'API_KEY_COINMARKETCAL_KAMU';
 
+// Fungsi kirim pesan ke Telegram
 const sendTelegramMessage = async (message) => {
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
@@ -24,60 +25,85 @@ const sendTelegramMessage = async (message) => {
       text: message,
     });
   } catch (err) {
-    console.error('❌ Failed to send Telegram message:', err.message);
+    console.error('Gagal kirim pesan Telegram:', err.message);
   }
 };
 
-const fetchListingsFromCMC = async () => {
+// Ambil token yang sudah listing di Indodax
+const fetchIndodaxCoins = async () => {
   try {
-    const response = await axios.get('https://developers.coinmarketcal.com/v1/events', {
+    const res = await axios.get('https://indodax.com/api/pairs');
+    const pairs = Object.keys(res.data.tickers || {});
+    indodaxSymbols = new Set(pairs.map(pair => pair.split('_')[0].toUpperCase()));
+    console.log(`Indodax: ${indodaxSymbols.size} token terdeteksi`);
+  } catch (err) {
+    console.error('Gagal ambil data Indodax:', err.message);
+  }
+};
+
+// Ambil listing dari CoinMarketCal
+const fetchListingsFromCoinMarketCal = async () => {
+  try {
+    const res = await axios.get('https://developers.coinmarketcal.com/v1/events', {
       headers: {
         'x-api-key': COINMARKETCAL_API_KEY,
-        Accept: 'application/json',
-        'Accept-Encoding': 'deflate, gzip',
       },
       params: {
         max: 10,
-        sortBy: 'created_desc',
-        showOnly: 'firmed_date',
-        translations: 'en',
+        sortBy: 'date',
+        filterBy: 'hot_events',
       },
     });
 
-    const events = response.data.body;
+    const events = res.data || [];
 
     for (const event of events) {
-      const coin = event.coins[0];
-      if (!coin) continue;
+      const tokenSymbol = event.coins?.[0]?.symbol || `UNKNOWN`;
+      const tokenName = event.coins?.[0]?.name || `Unknown Token`;
+      const exchange = event.categories?.[0]?.name || `Unknown Exchange`;
+      const listingTime = event.date_event;
 
-      const token = coin.symbol;
-      const name = coin.name;
-      const exchange = event.proof || 'Unknown Exchange';
-      const status = event.categories[0]?.name || 'Upcoming';
-      const time = event.date_event;
+      if (!lastNotified.has(tokenSymbol)) {
+        lastNotified.add(tokenSymbol);
 
-      if (!lastNotified.has(token)) {
-        const listing = { token, name, exchange, status, time };
-        listings.push(listing);
-        lastNotified.add(token);
+        const isListedOnIndodax = indodaxSymbols.has(tokenSymbol.toUpperCase());
 
-        const message = `🚀 *New Token Listing!*\n\n🪙 Token: *${token}*\n📛 Name: ${name}\n💱 Exchange: ${exchange}\n📅 Time: ${time}`;
-        sendTelegramMessage(message);
+        const message = `🚀 New Token Listing!
+
+🪙 Token: ${tokenSymbol}
+📛 Name: ${tokenName}
+💱 Exchange: ${exchange}
+📅 Time: ${listingTime}
+🇮🇩 Indodax: ${isListedOnIndodax ? '✅ Sudah Listing' : '❌ Belum Listing'}
+`;
+
+        listings.push({
+          tokenSymbol,
+          tokenName,
+          exchange,
+          listingTime,
+          isListedOnIndodax,
+        });
+
+        await sendTelegramMessage(message);
       }
     }
   } catch (err) {
-    console.error('❌ Error fetching from CoinMarketCal:', err.message);
+    console.error('Gagal fetch dari CoinMarketCal:', err.message);
   }
 };
 
-// Ambil data setiap 2 jam
-setInterval(fetchListingsFromCMC, 2 * 60 * 60 * 1000);
-fetchListingsFromCMC();
+// Jalankan awal & update berkala
+fetchIndodaxCoins();
+setInterval(fetchIndodaxCoins, 6 * 60 * 60 * 1000); // 4 jam
+fetchListingsFromCoinMarketCal();
+setInterval(fetchListingsFromCoinMarketCal, 2 * 60 * 60 * 1000); // 2 jam
 
+// Endpoint API publik
 app.get('/api/listings', (req, res) => {
   res.json(listings);
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`Server berjalan di http://localhost:${PORT}`);
 });
