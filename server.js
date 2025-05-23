@@ -12,9 +12,10 @@ let listings = [];
 let lastNotified = new Set();
 let indodaxSymbols = new Set(); // Token-token dari Indodax
 
-const TELEGRAM_TOKEN = 'TOKEN_BOT_KAMU';
-const CHAT_ID = 'CHAT_ID_KAMU';
-const COINMARKETCAL_API_KEY = 'API_KEY_COINMARKETCAL_KAMU';
+// Ganti dengan bot Telegram milikmu
+const TELEGRAM_TOKEN = '7658060064:AAFqy7wQHXHjH2dNDGSN3HgCTNt2tve1T8I';
+const CHAT_ID = '7259098951';
+const COINMARKETCAL_API_KEY = 'vHY89IrinPaYLTk7TfYuq6cdrv7XEYPTaIKFmiyb';
 
 // Fungsi kirim pesan ke Telegram
 const sendTelegramMessage = async (message) => {
